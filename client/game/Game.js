@@ -16,6 +16,7 @@ BasicGame.Game = function (game) {
   this.physics;   //  the physics manager (Phaser.Physics)
   this.rnd;       //  the repeatable random number generator (Phaser.RandomDataGenerator)
 
+
   // Objects
   this.floor = null;
   this.wallsBitmap = null;
@@ -27,14 +28,25 @@ BasicGame.Game = function (game) {
 
   // Line of sight vars
   this.markGraphics = null;
+  this.aimLine = null;
 
   // Line of sight constants
   this.lightAngle = Math.PI / 3;
   this.numberOfRays = 30;
   this.rayLength = 200;
 
+  // Shooting values
+  this.fireRate = 200;
+  this.nextFire = 0;
+  this.bullets = null;
+
+  // Explosion
+  this.explosionGroup = null;
+
   // Terrain
   this.map = null;
+  this.backgroundlayer = null;
+  this.blockedLayer = null;
 };
 
 BasicGame.Game.prototype = {
@@ -49,19 +61,26 @@ BasicGame.Game.prototype = {
 
     this.backgroundlayer = this.map.createLayer('backgroundLayer');
     this.blockedLayer = this.map.createLayer('blockedLayer');
-
-    this.map.setCollisionBetween(1, 2000, true, 'blockedLayer');
+    this.map.setCollisionBetween(1, 2000, true, this.blockedLayer);
 
     this.backgroundlayer.resizeWorld();
 
-/*    this.floor = this.add.sprite(0, 0, "floor");
-    this.wallsBitmap = this.make.bitmapData(640, 480);
-    this.wallsBitmap.draw("walls");
-    this.wallsBitmap.update();
-    this.add.sprite(0, 0, this.wallsBitmap);*/
-
+    // Aim
     this.maskGraphics = this.game.add.graphics(0, 0);
     this.worldDimmer = this.game.add.graphics(0, 0);
+    this.aimLine = this.game.add.graphics(0, 0);
+
+    // Setup bullets
+    this.bullets = this.game.add.group();
+    this.bullets.enableBody = true;
+    this.bullets.physicsBodyType = Phaser.Physics.ARCADE;
+
+    this.bullets.createMultiple(50, 'bullet');
+    this.bullets.setAll('checkWorldBounds', true);
+    this.bullets.setAll('outOfBoundsKill', true);
+    this.bullets.children.forEach(function (bullet) {
+      bullet.anchor.setTo(0.5);
+    });
 
     // Setup player
 //    const result = this.findObjectsByType('player', this.map, 'players');
@@ -71,6 +90,9 @@ BasicGame.Game.prototype = {
     this.game.physics.arcade.enable(this.player);
 
     this.game.camera.follow(this.player);
+
+    // Setup explosion
+    this.explosionGroup = this.game.add.group();
 
     // Input setup
     this.input.mouse.capture = true;
@@ -87,62 +109,34 @@ BasicGame.Game.prototype = {
     // Do collision
     this.game.physics.arcade.collide(this.player, this.blockedLayer);
 
+    this.game.physics.arcade.collide(this.bullets, this.blockedLayer, function(bullet, ground) {
+      this.getExplosion(bullet.x, bullet.y);
+      bullet.kill();
+    }, null, this);
+
     this.player.body.velocity.x = 0;
 
     if (this.cursors.up.isDown || this.wasdKeys.up.isDown) {
       if (this.player.body.velocity.y == 0)
-        this.player.body.velocity.y -= 50;
+        this.player.body.velocity.y -= 150;
     } else if (this.cursors.down.isDown || this.wasdKeys.down.isDown) {
       if (this.player.body.velocity.y == 0)
-        this.player.body.velocity.y += 50;
+        this.player.body.velocity.y += 150;
     } else {
       this.player.body.velocity.y = 0;
     }
 
     if (this.cursors.left.isDown || this.wasdKeys.left.isDown) {
-      this.player.body.velocity.x -= 50;
+      this.player.body.velocity.x -= 150;
     } else if(this.cursors.right.isDown || this.wasdKeys.right.isDown) {
-      this.player.body.velocity.x += 50;
+      this.player.body.velocity.x += 150;
     }
-
-    /* legacy code
-
-     var xSpeed = 0;
-    var ySpeed = 0;
-
-    if (this.cursors.up.isDown || this.wasdKeys.up.isDown) {
-      ySpeed -= 2;
-    }
-
-    if (this.cursors.down.isDown || this.wasdKeys.down.isDown) {
-      ySpeed += 2;
-    }
-
-    if (this.cursors.left.isDown || this.wasdKeys.left.isDown) {
-      xSpeed -= 2;
-    }
-
-    if (this.cursors.right.isDown || this.wasdKeys.right.isDown) {
-      xSpeed += 2;
-    }
-
-    let color = this.wallsBitmap.getPixel32(this.player.x + xSpeed + this.player.width / 2, this.player.y + ySpeed + this.player.height / 2);
-    color += this.wallsBitmap.getPixel32(this.player.x + xSpeed - this.player.width / 2, this.player.y + ySpeed + this.player.height / 2);
-    color += this.wallsBitmap.getPixel32(this.player.x + xSpeed - this.player.width / 2, this.player.y + ySpeed - this.player.height / 2);
-    color += this.wallsBitmap.getPixel32(this.player.x + xSpeed + this.player.width / 2, this.player.y + ySpeed - this.player.height / 2);
-
-    if (color == 0) {
-      this.player.x += xSpeed;
-      this.player.y += ySpeed;
-    }*/
-
 
     if (this.input.activePointer.leftButton.isDown) {
       this.shoot();
     }
 
     this.setupLineOfSight();
-
 
     // Orient player
     const mouseAngle = Math.atan2(this.player.y - this.input.y, this.player.x - this.input.x);
@@ -166,10 +160,11 @@ BasicGame.Game.prototype = {
       var rayAngle = mouseAngle - (this.lightAngle / 2) + (this.lightAngle / this.numberOfRays) * i;
       var lastX = this.player.x;
       var lastY = this.player.y;
-      for (var j = 1; j <= this.rayLength; j += 1) {
-        var landingX = Math.round(this.player.x - (2 * j) * Math.cos(rayAngle));
-        var landingY = Math.round(this.player.y - (2 * j) * Math.sin(rayAngle));
-        if (true){//this.wallsBitmap.getPixel32(landingX, landingY) == 0) {
+      for (let j = 1; j <= this.rayLength; j += 1) {
+        let landingX = Math.round(this.player.x - (2 * j) * Math.cos(rayAngle));
+        let landingY = Math.round(this.player.y - (2 * j) * Math.sin(rayAngle));
+
+        if (this.blockedLayer.getTiles(landingX, landingY, 2, 2, true).length == 0) {
 	  lastX = landingX;
 	  lastY = landingY;	
 	} else {
@@ -181,6 +176,36 @@ BasicGame.Game.prototype = {
     }
     this.maskGraphics.lineTo(this.player.x, this.player.y); 
     this.maskGraphics.endFill();
+
+    this.aimLine.clear();
+    this.aimLine.lineStyle(2, 0xFF2121, 1);
+    const sX = this.player.x;
+    const sY = this.player.y;
+    let finalRay = 0;
+
+    for (let j = 1; j <= this.rayLength; j += 1) {
+      let landingX = Math.round(this.player.x - (2 * j) * Math.cos(mouseAngle));
+      let landingY = Math.round(this.player.y - (2 * j) * Math.sin(mouseAngle));
+
+      if (this.blockedLayer.getTiles(landingX, landingY, 2, 2, true).length == 0) {
+        finalRay = j;
+      } else {
+	break;
+      }
+    }
+
+    this.aimLine.moveTo(sX, sY);
+    for (let j = 1; j <= finalRay; j += 1) {
+      let landingX = Math.round(this.player.x - (2 * j) * Math.cos(mouseAngle));
+      let landingY = Math.round(this.player.y - (2 * j) * Math.sin(mouseAngle));
+
+      if (j % 6 > 2) {
+        this.aimLine.lineTo(landingX, landingY);
+      } else {
+        this.aimLine.moveTo(landingX, landingY);
+      }
+    }
+    this.aimLine.endFill();
   },
 
   shoot: function() {
@@ -188,11 +213,37 @@ BasicGame.Game.prototype = {
     {
       this.nextFire = this.time.now + this.fireRate;
 
+      const mouseAngle = Math.atan2(this.player.y - this.input.y, this.player.x - this.input.x);
       var bullet = this.bullets.getFirstDead();
-      bullet.reset(this.player.x - 8, this.plyer.y - 8);
+      bullet.reset(this.player.x, this.player.y);
+      bullet.rotation = mouseAngle + Math.PI / 2;
 
-      this.physics.arcade.moveToPointer(bullet, 300);
+      this.physics.arcade.moveToPointer(bullet, 1000);
     }
+  },
+
+  getExplosion: function (x, y) {
+    var explosion = this.explosionGroup.getFirstDead();
+
+    if (explosion === null) {
+      explosion = this.game.add.sprite(0, 0, 'explosion');
+      explosion.anchor.setTo(0.5, 0.5);
+      explosion.alpha = 0.6;
+
+      var animation = explosion.animations.add('boom', [0,1,2], 60, false);
+      animation.killOnComplete = true;
+
+      this.explosionGroup.add(explosion);
+    }
+
+    explosion.revive();
+
+    explosion.x = x;
+    explosion.y = y;
+
+    explosion.angle = this.game.rnd.integerInRange(0, 360);
+
+    explosion.animations.play('boom');
   },
 
   findObjectsByType: function(type, map, layer) {

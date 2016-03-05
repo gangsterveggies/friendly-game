@@ -32,6 +32,7 @@ BasicGame.Preloader.prototype = {
 
     this.load.tilemap('level1', '/tilemaps/commando.json', null, Phaser.Tilemap.TILED_JSON);
     this.load.image('gameTiles', '/img/tiles.png');
+    this.game.load.spritesheet('explosion', '/img/explosion.png', 32, 32);
   },
 
   create: function () {
