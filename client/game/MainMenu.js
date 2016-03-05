@@ -18,20 +18,20 @@ BasicGame.MainMenu.prototype = {
 
 //    this.add.sprite(0, 0, 'titlepage');
 
-    this.playButton = this.add.button(400, 600, 'playButton', this.startGame, this, 'buttonOver', 'buttonOut', 'buttonOver');
+//    this.playButton = this.add.button(400, 600, 'playButton', this.startGame, this, 'buttonOver', 'buttonOut', 'buttonOver');
 
   },
 
   update: function () {
-
+    this.startGame();
     //	Do some nice funky main menu effect here
 
   },
 
-  startGame: function (pointer) {
+  startGame: function () {
 
     //	Ok, the Play Button has been clicked or touched, so let's stop the music (otherwise it'll carry on playing)
-    this.music.stop();
+//    this.music.stop();
 
     //	And start the actual game
     this.state.start('Game');

@@ -1,11 +1,11 @@
 Template.main.onRendered(function () {
-/*  var game = new Phaser.Game(800, 600, Phaser.AUTO, 'gameContainer');
+  var game = new Phaser.Game(800, 640, Phaser.AUTO, 'gameContainer');
 
   game.state.add('Boot', BasicGame.Boot);
   game.state.add('Preloader', BasicGame.Preloader);
   game.state.add('MainMenu', BasicGame.MainMenu);
   game.state.add('Game', BasicGame.Game);
-  game.state.start('Boot');*/
+  game.state.start('Boot');
   console.log("Game Started!");
 });
 
