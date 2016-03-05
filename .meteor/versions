@@ -24,7 +24,6 @@ ejson@1.0.7
 es5-shim@4.1.14
 fastclick@1.0.7
 geojson-utils@1.0.4
-gnomathibus:meteor-phaser@2.4.4
 hot-code-push@1.0.0
 html-tools@1.0.5
 htmljs@1.0.5
@@ -54,6 +53,7 @@ reload@1.1.4
 retry@1.0.4
 routepolicy@1.0.6
 session@1.1.1
+snowypowers:meteor-phaser@2.4.6
 spacebars@1.0.7
 spacebars-compiler@1.0.7
 standard-minifiers@1.0.2

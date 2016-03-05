@@ -28,6 +28,10 @@ BasicGame.Preloader.prototype = {
     this.load.image("floor", "/img/floor.png");
     this.load.image("walls", "/img/walls.png");
     this.load.image("player", "/img/player.png");
+    this.load.image("bullet", "/img/bullet.png");
+
+    this.load.tilemap('level1', '/tilemaps/commando.json', null, Phaser.Tilemap.TILED_JSON);
+    this.load.image('gameTiles', '/img/tiles.png');
   },
 
   create: function () {
