@@ -30,8 +30,12 @@ BasicGame.Preloader.prototype = {
     this.load.image("player", "/img/player.png");
     this.load.image("bullet", "/img/bullet.png");
 
-    this.load.tilemap('level1', '/tilemaps/commando.json', null, Phaser.Tilemap.TILED_JSON);
-    this.load.image('gameTiles', '/img/tiles.png');
+    this.load.tilemap('level1', '/tilemaps/commando2.json', null, Phaser.Tilemap.TILED_JSON);
+//    this.load.image('gameTiles', '/img/tiles.png');
+    this.load.image('gameTiles1', '/img/tilee.png');
+    this.load.image('gameTiles2', '/img/TileC.png');
+    this.load.image('gameTiles3', '/img/walls1.png');
+
     this.game.load.spritesheet('explosion', '/img/explosion.png', 32, 32);
   },
 

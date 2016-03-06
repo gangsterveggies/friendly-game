@@ -17,10 +17,9 @@ BasicGame.Game = function (game) {
   this.rnd;       //  the repeatable random number generator (Phaser.RandomDataGenerator)
 
 
-  // Objects
-  this.floor = null;
-  this.wallsBitmap = null;
+  // Player objects
   this.player = null;
+  this.opponents = null;
 
   // Keys
   this.cursors = null;
@@ -57,7 +56,10 @@ BasicGame.Game.prototype = {
     // Setup tilemap
     this.map = this.game.add.tilemap('level1');
     console.log(this.map.tileWidth);
-    this.map.addTilesetImage('commando', 'gameTiles');
+//    this.map.addTilesetImage('commando', 'gameTiles');
+    this.map.addTilesetImage('tilee', 'gameTiles1');
+    this.map.addTilesetImage('TileC', 'gameTiles2');
+    this.map.addTilesetImage('walls1', 'gameTiles3');
 
     this.backgroundlayer = this.map.createLayer('backgroundLayer');
     this.blockedLayer = this.map.createLayer('blockedLayer');
@@ -84,12 +86,18 @@ BasicGame.Game.prototype = {
 
     // Setup player
 //    const result = this.findObjectsByType('player', this.map, 'players');
-    this.player = this.add.sprite(80, 80, 'player');
+    this.player = new Player(80, 80, this.game);
+//    this.player = this.add.sprite(80, 80, 'player');
 //    this.player = this.add.sprite(result[0].x, result[0].y, 'player');
-    this.player.anchor.setTo(0.5, 0.5);
-    this.game.physics.arcade.enable(this.player);
+//    this.player.anchor.setTo(0.5, 0.5);
+//    this.game.physics.arcade.enable(this.player);
 
-    this.game.camera.follow(this.player);
+    this.game.camera.follow(this.player.player);
+
+    this.opponents = new Array();
+    for (let i = 0; i < 1; i++) {
+      this.opponents.push(new Player(230, 230, this.game));
+    }
 
     // Setup explosion
     this.explosionGroup = this.game.add.group();
@@ -107,44 +115,43 @@ BasicGame.Game.prototype = {
 
   update: function () {
     // Do collision
-    this.game.physics.arcade.collide(this.player, this.blockedLayer);
+    this.game.physics.arcade.collide(this.player.player, this.blockedLayer);
 
     this.game.physics.arcade.collide(this.bullets, this.blockedLayer, function(bullet, ground) {
       this.getExplosion(bullet.x, bullet.y);
       bullet.kill();
     }, null, this);
 
-    this.player.body.velocity.x = 0;
+    var self = this;
+    this.opponents.forEach(function(opponent) {
+      self.game.physics.arcade.collide(opponent.player, self.blockedLayer);
 
-    if (this.cursors.up.isDown || this.wasdKeys.up.isDown) {
-      if (this.player.body.velocity.y == 0)
-        this.player.body.velocity.y -= 150;
-    } else if (this.cursors.down.isDown || this.wasdKeys.down.isDown) {
-      if (this.player.body.velocity.y == 0)
-        this.player.body.velocity.y += 150;
-    } else {
-      this.player.body.velocity.y = 0;
-    }
+      var opponentOuter = opponent;
 
-    if (this.cursors.left.isDown || this.wasdKeys.left.isDown) {
-      this.player.body.velocity.x -= 150;
-    } else if(this.cursors.right.isDown || this.wasdKeys.right.isDown) {
-      this.player.body.velocity.x += 150;
-    }
+      self.game.physics.arcade.overlap(self.bullets, opponent.player, function(opponent, bullet) {
+        opponentOuter.hit();
+        self.getExplosion(bullet.x, bullet.y);
+        bullet.kill();
+      });
+
+      opponent.update(self.cursors);
+    });
+
+    this.player.update(this.wasdKeys);
 
     if (this.input.activePointer.leftButton.isDown) {
-      this.shoot();
+      this.shoot(this.player.player);
     }
 
     this.setupLineOfSight();
 
     // Orient player
-    const mouseAngle = Math.atan2(this.player.y - this.input.y, this.player.x - this.input.x);
-    this.player.angle = (mouseAngle * 180) / Math.PI - 90;
+    const mouseAngle = Math.atan2(this.player.player.y - this.input.y, this.player.player.x - this.input.x);
+    this.player.player.angle = (mouseAngle * 180) / Math.PI - 90;
   },
 
   setupLineOfSight: function() {
-    const mouseAngle = Math.atan2(this.player.y - this.input.y, this.player.x - this.input.x);
+    const mouseAngle = Math.atan2(this.player.player.y - this.input.y, this.player.player.x - this.input.x);
     this.worldDimmer.clear();
     this.worldDimmer.beginFill(0x000, 0.6);
     this.worldDimmer.drawRect(0, 0, 800, 640);
@@ -154,15 +161,15 @@ BasicGame.Game.prototype = {
     this.maskGraphics.lineStyle(2, 0xffffff, 0.3);
     this.maskGraphics.beginFill(0xffffff, 0.3);
 
-    this.maskGraphics.moveTo(this.player.x, this.player.y);
+    this.maskGraphics.moveTo(this.player.player.x, this.player.player.y);
 
     for (var i = 0; i < this.numberOfRays; i++) {
       var rayAngle = mouseAngle - (this.lightAngle / 2) + (this.lightAngle / this.numberOfRays) * i;
-      var lastX = this.player.x;
-      var lastY = this.player.y;
+      var lastX = this.player.player.x;
+      var lastY = this.player.player.y;
       for (let j = 1; j <= this.rayLength; j += 1) {
-        let landingX = Math.round(this.player.x - (2 * j) * Math.cos(rayAngle));
-        let landingY = Math.round(this.player.y - (2 * j) * Math.sin(rayAngle));
+        let landingX = Math.round(this.player.player.x - (2 * j) * Math.cos(rayAngle));
+        let landingY = Math.round(this.player.player.y - (2 * j) * Math.sin(rayAngle));
 
         if (this.blockedLayer.getTiles(landingX, landingY, 2, 2, true).length == 0) {
 	  lastX = landingX;
@@ -174,18 +181,18 @@ BasicGame.Game.prototype = {
       }
       this.maskGraphics.lineTo(lastX, lastY);
     }
-    this.maskGraphics.lineTo(this.player.x, this.player.y); 
+    this.maskGraphics.lineTo(this.player.player.x, this.player.player.y); 
     this.maskGraphics.endFill();
 
     this.aimLine.clear();
     this.aimLine.lineStyle(2, 0xFF2121, 1);
-    const sX = this.player.x;
-    const sY = this.player.y;
+    const sX = this.player.player.x;
+    const sY = this.player.player.y;
     let finalRay = 0;
 
     for (let j = 1; j <= this.rayLength; j += 1) {
-      let landingX = Math.round(this.player.x - (2 * j) * Math.cos(mouseAngle));
-      let landingY = Math.round(this.player.y - (2 * j) * Math.sin(mouseAngle));
+      let landingX = Math.round(this.player.player.x - (2 * j) * Math.cos(mouseAngle));
+      let landingY = Math.round(this.player.player.y - (2 * j) * Math.sin(mouseAngle));
 
       if (this.blockedLayer.getTiles(landingX, landingY, 2, 2, true).length == 0) {
         finalRay = j;
@@ -196,8 +203,8 @@ BasicGame.Game.prototype = {
 
     this.aimLine.moveTo(sX, sY);
     for (let j = 1; j <= finalRay; j += 1) {
-      let landingX = Math.round(this.player.x - (2 * j) * Math.cos(mouseAngle));
-      let landingY = Math.round(this.player.y - (2 * j) * Math.sin(mouseAngle));
+      let landingX = Math.round(this.player.player.x - (2 * j) * Math.cos(mouseAngle));
+      let landingY = Math.round(this.player.player.y - (2 * j) * Math.sin(mouseAngle));
 
       if (j % 6 > 2) {
         this.aimLine.lineTo(landingX, landingY);
@@ -208,14 +215,14 @@ BasicGame.Game.prototype = {
     this.aimLine.endFill();
   },
 
-  shoot: function() {
+  shoot: function(player) {
     if (this.time.now > this.nextFire && this.bullets.countDead() > 0)
     {
       this.nextFire = this.time.now + this.fireRate;
 
-      const mouseAngle = Math.atan2(this.player.y - this.input.y, this.player.x - this.input.x);
+      const mouseAngle = Math.atan2(player.y - this.input.y, player.x - this.input.x);
       var bullet = this.bullets.getFirstDead();
-      bullet.reset(this.player.x, this.player.y);
+      bullet.reset(player.x, player.y);
       bullet.rotation = mouseAngle + Math.PI / 2;
 
       this.physics.arcade.moveToPointer(bullet, 1000);
