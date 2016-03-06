@@ -30,9 +30,9 @@ BasicGame.Game = function (game) {
   this.aimLine = null;
 
   // Line of sight constants
-  this.lightAngle = Math.PI / 3;
-  this.numberOfRays = 30;
-  this.rayLength = 200;
+  this.lightAngle = Math.PI / 2;
+  this.numberOfRays = 40;
+  this.rayLength = 300;
 
   // Shooting values
   this.fireRate = 200;
@@ -46,6 +46,11 @@ BasicGame.Game = function (game) {
   this.map = null;
   this.backgroundlayer = null;
   this.blockedLayer = null;
+
+  // Status
+  this.RUNNING = 0;
+  this.OVER = 1;
+  this.status = this.RUNNING;
 };
 
 BasicGame.Game.prototype = {
@@ -86,7 +91,7 @@ BasicGame.Game.prototype = {
 
     // Setup player
 //    const result = this.findObjectsByType('player', this.map, 'players');
-    this.player = new Player(80, 80, this.game);
+    this.player = new Player(80, 80, this.game, true, 1);
 //    this.player = this.add.sprite(80, 80, 'player');
 //    this.player = this.add.sprite(result[0].x, result[0].y, 'player');
 //    this.player.anchor.setTo(0.5, 0.5);
@@ -96,7 +101,7 @@ BasicGame.Game.prototype = {
 
     this.opponents = new Array();
     for (let i = 0; i < 1; i++) {
-      this.opponents.push(new Player(230, 230, this.game));
+      this.opponents.push(new Player(230, 230, this.game, false, 0));
     }
 
     // Setup explosion
@@ -114,6 +119,11 @@ BasicGame.Game.prototype = {
   },
 
   update: function () {
+    if (this.status == this.OVER) {
+      const txt = this.game.add.bitmapText(40, 40, "pixel", "GAME OVER");
+      return;
+    }
+
     // Do collision
     this.game.physics.arcade.collide(this.player.player, this.blockedLayer);
 
@@ -123,7 +133,13 @@ BasicGame.Game.prototype = {
     }, null, this);
 
     var self = this;
+    let deadCount = 0;
     this.opponents.forEach(function(opponent) {
+      if (opponent.dead()) {
+        deadCount++;
+      }
+
+      opponent.setAlpha(0.4);
       self.game.physics.arcade.collide(opponent.player, self.blockedLayer);
 
       var opponentOuter = opponent;
@@ -136,6 +152,10 @@ BasicGame.Game.prototype = {
 
       opponent.update(self.cursors);
     });
+
+    if (deadCount == this.opponents.length) {
+      this.gameOver();
+    }
 
     this.player.update(this.wasdKeys);
 
@@ -178,6 +198,12 @@ BasicGame.Game.prototype = {
 	  this.maskGraphics.lineTo(lastX, lastY);
 	  break;
 	}
+
+        this.opponents.forEach(function(opponent) {
+          if (opponent.player.body.hitTest(landingX, landingY)) {
+            opponent.setAlpha(1);
+          }
+        }, this);
       }
       this.maskGraphics.lineTo(lastX, lastY);
     }
@@ -262,6 +288,10 @@ BasicGame.Game.prototype = {
       }      
     });
     return result;
+  },
+
+  gameOver: function () {
+    this.status = this.OVER;
   },
 
   quitGame: function (pointer) {

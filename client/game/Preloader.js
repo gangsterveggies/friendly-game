@@ -25,10 +25,10 @@ BasicGame.Preloader.prototype = {
     //    this.load.bitmapFont('caslon', 'fonts/caslon.png', 'fonts/caslon.xml');
     //	+ lots of other required assets here
 
-    this.load.image("floor", "/img/floor.png");
-    this.load.image("walls", "/img/walls.png");
-    this.load.image("player", "/img/player.png");
+    this.game.load.bitmapFont('pixel', '/fonts/font.png', '/fonts/font.fnt');
     this.load.image("bullet", "/img/bullet.png");
+
+    this.game.load.spritesheet("player", "/img/player.png", 32, 32);
 
     this.load.tilemap('level1', '/tilemaps/commando2.json', null, Phaser.Tilemap.TILED_JSON);
 //    this.load.image('gameTiles', '/img/tiles.png');
